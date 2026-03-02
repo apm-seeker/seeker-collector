@@ -51,16 +51,16 @@ message AgentInfo {
 // ----------------------------------------------------------------
 
 // 분산 추적의 식별자 정보
-message PTraceId {
-  string transaction_id = 1; // 전체 요청 체인을 식별하는 고유 ID (ex. UUID)
+message TraceId {
+  string trace_id = 1;       // 전체 요청 체인을 식별하는 고유 ID (ex. UUID)
   int64 span_id = 2;         // 현재 서버의 Span 고유 ID
-  int64 parent_span_id = 3;  // 호출한 서버의 부모 spanId (루트일 경우 비어있거나 특정 값)
+  int64 parent_span_id = 3;  // 호출한 서버의 부모 spanId (루트일 경우 -1)
   int32 flags = 4;           // 샘플링 여부 등 상태 플래그
 }
 
 // 하나의 서버 요청 단위 (Collector로 전송되는 최소 완료 단위)
 message Span {
-  PTraceId trace_id = 1;
+  TraceId trace_id = 1;
   string agent_id = 2;
   string application_name = 3;
   int64 start_time = 4;              // Span 시작 시간 (Epoch Millis)
@@ -88,7 +88,7 @@ message SpanEvent {
 
 // 장기 실행 트랜잭션 등에서 SpanEvent를 배치로 묶어서 중간 전송할 때 사용
 message SpanChunk {
-  PTraceId trace_id = 1;
+  TraceId trace_id = 1;
   string agent_id = 2;
   string application_name = 3;
   repeated SpanEvent span_event_list = 4;
