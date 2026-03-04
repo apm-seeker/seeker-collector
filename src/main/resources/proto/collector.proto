@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package com.custom.collector.global.grpc;
+package com.seeker.collector.global.grpc;
 
 // message / service를 각각 별도의 클래스로 생성
 option java_multiple_files = true;
-option java_package = "com.custom.collector.global.grpc";
+option java_package = "com.seeker.collector.global.grpc";
 option java_outer_classname = "CollectorProto";
 
 // ----------------------------------------------------------------
@@ -76,13 +76,13 @@ message Span {
 // Span 내부에서 발생한 세부 작업 단위 (DB 쿼리, 외부 HTTP 호출 등)
 message SpanEvent {
   int32 sequence = 1;          // Span 내에서의 실행 순서
-  int32 start_elapsed = 2;     // Span 시작 기준 이벤트 시작 상대 시간 (Millis)
+  int64 start_time = 2;        // Span 시작 기준 이벤트 시작 상대 시간 (Millis)
   int32 end_elapsed = 3;       // Span 시작 기준 이벤트 종료 상대 시간 (Millis)
   int32 depth = 4;             // 콜스택 깊이
   int32 service_type = 5;      // JDBC, HTTP_CLIENT 등 서비스 타입 코드
   string destination_id = 6;   // DB명, 외부 API 호스트 정보 등
   int64 next_span_id = 7;      // 다음 서버로 전파 시 사용할 spanId (없으면 -1)
-  int32 api_id = 8;            // 실행된 API 혹은 메서드를 나타내는 ID 
+  int32 api_id = 8;            // 실행된 API 혹은 메서드를 나타내는 ID
   string exception_info = 9;   // 발생한 Exception 내역
 }
 
