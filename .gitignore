@@ -37,3 +37,7 @@ out/
 .vscode/
 
 agent-detail-plan.md
+
+### Application config ###
+src/main/resources/application.yml
+src/main/resources/application.yaml
