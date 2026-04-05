@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package com.seeker.collector.global.grpc;
+
+// message / service를 각각 별도의 클래스로 생성
+option java_multiple_files = true;
+option java_package = "com.seeker.collector.global.grpc";
+option java_outer_classname = "CollectorProto";
+
+// ----------------------------------------------------------------
+// 1. Service Definition
+// ----------------------------------------------------------------
+service CollectorService {
+  // 에이전트가 Collector로 데이터 스트림을 전송하는 RPC (Client-side streaming)
+  // 한 번의 연결로 AgentInfo, Span, SpanChunk, Metric 등을 연속해서 전송
+  rpc collect (stream DataMessage) returns (CollectResponse);
+}
+
+// ----------------------------------------------------------------
+// 2. Wrapper Message (Stream Data)
+// ----------------------------------------------------------------
+message DataMessage {
+  // oneof를 사용하여 한 메시지가 여러 타입 중 하나를 가질 수 있도록 함
+  oneof data {
+    AgentInfo agent_info = 1;
+    Span span = 2;
+    SpanChunk span_chunk = 3;
+    Metric metric = 4;
+  }
+}
+
+// 서버의 응답 메시지
+message CollectResponse {
+  bool success = 1;
+  int32 received_count = 2; // 서버가 스트림을 통해 성공적으로 받은 메시지 수
+}
+
+// ----------------------------------------------------------------
+// 3. Agent Info Domain
+// ----------------------------------------------------------------
+message AgentInfo {
+  string agent_id = 1;           // 에이전트의 고유 ID
+  string application_name = 2;   // 에이전트가 속한 애플리케이션(서비스) 이름
+  string hostname = 3;           // 호스트 이름
+  string ip_address = 4;         // IP 주소
+  int64 start_timestamp = 5;     // 에이전트 시작 시간 (Epoch Millis)
+}
+
+// ----------------------------------------------------------------
+// 4. Trace & Span Domain
+// ----------------------------------------------------------------
+
+// 분산 추적의 식별자 정보
+message TraceId {
+  string trace_id = 1;       // 전체 요청 체인을 식별하는 고유 ID (ex. UUID)
+  int64 span_id = 2;         // 현재 서버의 Span 고유 ID
+  int64 parent_span_id = 3;  // 호출한 서버의 부모 spanId (루트일 경우 -1)
+  int32 flags = 4;           // 샘플링 여부 등 상태 플래그
+}
+
+// 하나의 서버 요청 단위 (Collector로 전송되는 최소 완료 단위)
+message Span {
+  TraceId trace_id = 1;
+  string agent_id = 2;
+  string application_name = 3;
+  int64 start_time = 4;              // Span 시작 시간 (Epoch Millis)
+  int32 elapsed_time = 5;            // 소요 시간 (Millis)
+  string rpc = 6;                    // 요청된 RPC / URL 통계용
+  string remote_addr = 7;            // 호출자(클라이언트) IP
+  string end_point = 8;              // 리소스 엔드포인트
+  int32 service_type = 9;            // TOMCAT, SPRING_BOOT 등 서비스 타입 코드
+  string exception_info = 10;        // 발생한 Exception 내역 (없으면 빈 문자열)
+  repeated SpanEvent span_event_list = 11; // 내부의 상세 이벤트들
+}
+
+// Span 내부에서 발생한 세부 작업 단위 (DB 쿼리, 외부 HTTP 호출 등)
+message SpanEvent {
+  int32 sequence = 1;          // Span 내에서의 실행 순서
+  int64 start_time = 2;        // Span 시작 기준 이벤트 시작 상대 시간 (Millis)
+  int32 end_elapsed = 3;       // Span 시작 기준 이벤트 종료 상대 시간 (Millis)
+  int32 depth = 4;             // 콜스택 깊이
+  int32 service_type = 5;      // JDBC, HTTP_CLIENT 등 서비스 타입 코드
+  string destination_id = 6;   // DB명, 외부 API 호스트 정보 등
+  int64 next_span_id = 7;      // 다음 서버로 전파 시 사용할 spanId (없으면 -1)
+  int32 api_id = 8;            // 실행된 API 혹은 메서드를 나타내는 ID
+  string exception_info = 9;   // 발생한 Exception 내역
+}
+
+// 장기 실행 트랜잭션 등에서 SpanEvent를 배치로 묶어서 중간 전송할 때 사용
+message SpanChunk {
+  TraceId trace_id = 1;
+  string agent_id = 2;
+  string application_name = 3;
+  repeated SpanEvent span_event_list = 4;
+}
+
+// ----------------------------------------------------------------
+// 5. Metric Domain
+// ----------------------------------------------------------------
+// CPU, 메모리 등 시스템 매트릭
+message Metric {
+  int64 timestamp = 1;       // 측정 시간 (Epoch Millis)
+  double cpu_usage = 2;      // CPU 사용률 (0.0 ~ 1.0)
+  double memory_usage = 3;   // 메모리 사용률 (0.0 ~ 1.0)
+  int64 jvm_heap_used = 4;   // JVM 힙 사용량 (bytes)
+}
