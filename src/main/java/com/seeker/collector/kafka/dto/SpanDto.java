@@ -13,7 +13,7 @@ public class SpanDto {
     private String applicationName;
     private long startTime;
     private int elapsedTime;
-    private String rpc;
+    private String uri;
     private String remoteAddr;
     private String endPoint;
     private int serviceType;

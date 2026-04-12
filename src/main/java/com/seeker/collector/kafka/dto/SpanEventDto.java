@@ -1,5 +1,6 @@
 package com.seeker.collector.kafka.dto;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -12,11 +13,9 @@ public class SpanEventDto {
     private String applicationName;
     private int sequence;
     private long startTime;
-    private int endElapsed;
+    private int elapsedTime;
     private int depth;
-    private int serviceType;
-    private String destinationId;
-    private long nextSpanId;
-    private int apiId;
+    private int methodType;
+    private Map<String,String> attributes;
     private String exceptionInfo;
 }
