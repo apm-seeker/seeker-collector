@@ -65,7 +65,7 @@ message Span {
   string application_name = 3;
   int64 start_time = 4;              // Span 시작 시간 (Epoch Millis)
   int32 elapsed_time = 5;            // 소요 시간 (Millis)
-  string rpc = 6;                    // 요청된 RPC / URL 통계용
+  string uri = 6;                    // 요청된 RPC / URL 통계용
   string remote_addr = 7;            // 호출자(클라이언트) IP
   string end_point = 8;              // 리소스 엔드포인트
   int32 service_type = 9;            // TOMCAT, SPRING_BOOT 등 서비스 타입 코드
@@ -76,14 +76,12 @@ message Span {
 // Span 내부에서 발생한 세부 작업 단위 (DB 쿼리, 외부 HTTP 호출 등)
 message SpanEvent {
   int32 sequence = 1;          // Span 내에서의 실행 순서
-  int64 start_time = 2;        // Span 시작 기준 이벤트 시작 상대 시간 (Millis)
-  int32 end_elapsed = 3;       // Span 시작 기준 이벤트 종료 상대 시간 (Millis)
+  int64 start_time = 2;        // 이벤트 시작 시간 (ms)
+  int32 elapsed_time = 3;      // 소요 시간 (ms)
   int32 depth = 4;             // 콜스택 깊이
-  int32 service_type = 5;      // JDBC, HTTP_CLIENT 등 서비스 타입 코드
-  string destination_id = 6;   // DB명, 외부 API 호스트 정보 등
-  int64 next_span_id = 7;      // 다음 서버로 전파 시 사용할 spanId (없으면 -1)
-  int32 api_id = 8;            // 실행된 API 혹은 메서드를 나타내는 ID
-  string exception_info = 9;   // 발생한 Exception 내역
+  int32 method_type = 5;       // JDBC, HTTP_CLIENT 등 메서드 타입 코드
+  string exception_info = 6;   // 발생한 Exception 내역
+  map<string, string> attributes = 7; // 이벤트 부가 정보 (sql, url 등)
 }
 
 // 장기 실행 트랜잭션 등에서 SpanEvent를 배치로 묶어서 중간 전송할 때 사용
