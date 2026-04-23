@@ -71,6 +71,7 @@ message Span {
   int32 service_type = 9;            // TOMCAT, SPRING_BOOT 등 서비스 타입 코드
   string exception_info = 10;        // 발생한 Exception 내역 (없으면 빈 문자열)
   repeated SpanEvent span_event_list = 11; // 내부의 상세 이벤트들
+  int32 status_code = 12;            //서버에서 반환한 status code
 }
 
 // Span 내부에서 발생한 세부 작업 단위 (DB 쿼리, 외부 HTTP 호출 등)
