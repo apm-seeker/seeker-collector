@@ -1,14 +1,13 @@
 package com.seeker.collector.agent.service;
 
-import com.seeker.collector.agent.dto.AgentDto;
-import com.seeker.collector.kafka.dto.AgentEventDto;
-import com.seeker.collector.kafka.dto.AgentEventType;
+import com.seeker.collector.agent.dto.AgentCreateRequest;
+import com.seeker.collector.agent.dto.AgentDeleteRequest;
+import com.seeker.collector.kafka.dto.payload.AgentCreatedPayload;
+import com.seeker.collector.kafka.dto.payload.AgentDeletedPayload;
 import com.seeker.collector.kafka.producer.AgentKafkaProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -16,23 +15,25 @@ public class AgentService {
 
     private final AgentKafkaProducer agentKafkaProducer;
 
-    public Mono<Void> createAgent(AgentDto agentDto) {
-        AgentEventDto agentEventDto = AgentEventDto
+    public Mono<Void> createAgent(AgentCreateRequest agentRequest) {
+        AgentCreatedPayload payload = AgentCreatedPayload
                 .builder()
-                .agentEventType(AgentEventType.AGENT_CREATED)
-                .agentId(agentDto.getAgentId())
-                .payload(agentDto)
+                .agentId(agentRequest.getAgentId())
+                .agentName(agentRequest.getAgentName())
+                .agentType(agentRequest.getAgentType())
+                .agentGroup(agentRequest.getAgentGroup())
+                .startTime(agentRequest.getStartTime())
                 .build();
-        return agentKafkaProducer.sendAgent(agentEventDto);
+
+        return agentKafkaProducer.sendCreatedEvent(payload);
     }
 
-    public Mono<Void> deleteAgent(UUID agentId) {
-        AgentEventDto agentEventDto = AgentEventDto
+    public Mono<Void> deleteAgent(AgentDeleteRequest agentRequest) {
+        AgentDeletedPayload payload = AgentDeletedPayload
                 .builder()
-                .agentEventType(AgentEventType.AGENT_DELETED)
-                .agentId(agentId)
+                .agentId(agentRequest.getAgentId())
+                .endTime(agentRequest.getEndTime())
                 .build();
-        return agentKafkaProducer.sendAgent(agentEventDto);
+        return agentKafkaProducer.sendDeletedEvent(payload);
     }
-
 }

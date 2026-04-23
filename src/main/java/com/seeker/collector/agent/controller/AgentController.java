@@ -1,14 +1,13 @@
 package com.seeker.collector.agent.controller;
 
-import com.seeker.collector.agent.dto.AgentDto;
+import com.seeker.collector.agent.dto.AgentCreateRequest;
+import com.seeker.collector.agent.dto.AgentDeleteRequest;
 import com.seeker.collector.agent.service.AgentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,21 +18,21 @@ public class AgentController {
 
     @PostMapping
     public Mono<ResponseEntity<Void>> createAgent(
-            @RequestBody AgentDto agentDto
+            @RequestBody AgentCreateRequest agentRequest
         ) {
 
-        return agentService.createAgent(agentDto)
+        return agentService.createAgent(agentRequest)
                 .map(result -> ResponseEntity.ok().<Void>build())
                 .onErrorResume(e ->
                         Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()));
     }
 
-    @DeleteMapping("/{agentId}")
+    @DeleteMapping
     public Mono<ResponseEntity<Void>> deleteAgent(
-            @PathVariable UUID agentId
+            @RequestBody AgentDeleteRequest agentRequest
     ) {
 
-        return agentService.deleteAgent(agentId)
+        return agentService.deleteAgent(agentRequest)
                 .map(result -> ResponseEntity.ok().<Void>build())
                 .onErrorResume(e ->
                         Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build()));
