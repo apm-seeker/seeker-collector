@@ -1,9 +1,11 @@
 package com.seeker.collector.kafka.producer;
 
-import com.seeker.collector.kafka.dto.AgentEventDto;
+import com.seeker.collector.kafka.dto.EventType;
+import com.seeker.collector.kafka.dto.payload.AgentCreatedPayload;
+import com.seeker.collector.kafka.dto.payload.AgentDeletedPayload;
+import com.seeker.collector.kafka.dto.EventEnvelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -14,20 +16,24 @@ public class AgentKafkaProducer {
 
     private static final String AGENT_TOPIC = "agent-events";
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaEventPublisher eventPublisher;
 
-    // agent 이벤트는 ack 동기 보장
-    public Mono<Void> sendAgent(AgentEventDto dto) {
-        return Mono.fromFuture(
-                        kafkaTemplate.send(AGENT_TOPIC, dto.getAgentId().toString(), dto)
-                )
-                .doOnError(ex ->
-                        log.error("[Collector] kafka agent event 전송 실패: agentId={}, eventType={}",
-                                dto.getAgentId(),
-                                dto.getAgentEventType(),
-                                ex)
-                )
-                .then();
+    public Mono<Void> sendCreatedEvent(AgentCreatedPayload payload) {
+        return sendEvent(EventType.AGENT_CREATED, payload.getAgentId(), payload);
     }
 
+    public Mono<Void> sendDeletedEvent(AgentDeletedPayload payload) {
+        return sendEvent(EventType.AGENT_DELETED, payload.getAgentId(), payload);
+    }
+
+    private <T> Mono<Void> sendEvent(EventType eventType, String key, T payload) {
+
+        EventEnvelope<T> event = EventEnvelope.<T>builder()
+                .eventType(eventType)
+                .timestamp(System.currentTimeMillis())
+                .payload(payload)
+                .build();
+
+        return eventPublisher.publish(AGENT_TOPIC, key, event);
+    }
 }
