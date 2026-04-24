@@ -63,8 +63,9 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
                     .subscribe(null, err -> {});
         }
 
+        long spanId = spanPayload.getSpanId();
         for (SpanEvent spanEvent : span.getSpanEventListList()) {
-            SpanEventPayload spanEventPayload = toSpanEventPayload(spanEvent);
+            SpanEventPayload spanEventPayload = toSpanEventPayload(spanEvent, spanId);
 
             traceDataKafkaProducer.sendSpanEvent(spanEventPayload, traceId)
                     .subscribe(null, err -> {});
@@ -100,9 +101,10 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
                 .build();
     }
 
-    private SpanEventPayload toSpanEventPayload(SpanEvent spanEvent) {
+    private SpanEventPayload toSpanEventPayload(SpanEvent spanEvent, long spanId) {
         return SpanEventPayload
                 .builder()
+                .spanId(spanId)
                 .sequence(spanEvent.getSequence())
                 .depth(spanEvent.getDepth())
                 .startTime(spanEvent.getStartTime())

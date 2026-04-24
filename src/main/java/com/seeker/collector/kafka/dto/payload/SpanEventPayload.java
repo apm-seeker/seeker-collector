@@ -6,6 +6,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class SpanEventPayload implements TraceDataPayload {
+    private long spanId;
     private int sequence;
     private int depth;
     private long startTime;
