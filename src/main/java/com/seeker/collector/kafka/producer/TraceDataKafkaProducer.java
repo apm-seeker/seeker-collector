@@ -19,15 +19,16 @@ public class TraceDataKafkaProducer {
 
     private final KafkaEventPublisher eventPublisher;
 
-    public void sendTrace(TracePayload payload, String traceId) {
-        sendEvent(EventType.TRACE, traceId, payload);
+    public Mono<Void> sendTrace(TracePayload payload, String traceId) {
+        return sendEvent(EventType.TRACE, traceId, payload);
     }
 
-    public void sendSpan(SpanPayload payload, String traceId) {
-        sendEvent(EventType.SPAN, traceId, payload);
+    public Mono<Void> sendSpan(SpanPayload payload, String traceId) {
+        return sendEvent(EventType.SPAN, traceId, payload);
     }
-    public void sendSpanEvent(SpanEventPayload payload, String traceId) {
-        sendEvent(EventType.SPAN_EVENT, traceId, payload);
+
+    public Mono<Void> sendSpanEvent(SpanEventPayload payload, String traceId) {
+        return sendEvent(EventType.SPAN_EVENT, traceId, payload);
     }
 
     private <T> Mono<Void> sendEvent(EventType eventType, String key, T payload) {
