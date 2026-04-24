@@ -5,6 +5,7 @@ import com.seeker.collector.kafka.dto.payload.SpanEventPayload;
 import com.seeker.collector.kafka.dto.payload.SpanPayload;
 import com.seeker.collector.kafka.dto.payload.TracePayload;
 import com.seeker.collector.kafka.producer.TraceDataKafkaProducer;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,8 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
 
             @Override
             public void onError(Throwable t) {
-                log.error("[Collector] gRPC 스트림 에러", t);
+                log.error("[Collector] gRPC 스트림 에러 - 수신 메시지 수: {}", receivedCount, t);
+                responseObserver.onError(Status.fromThrowable(t).asRuntimeException());
             }
 
             @Override
@@ -53,16 +55,19 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
         SpanPayload spanPayload = toSpanPayload(span);
         String traceId = spanPayload.getTraceId();
 
-        traceDataKafkaProducer.sendSpan(spanPayload, traceId);
+        traceDataKafkaProducer.sendSpan(spanPayload, traceId)
+                .subscribe(null, err -> {});
 
         if (spanPayload.getParentSpanId() == -1) {
-            traceDataKafkaProducer.sendTrace(toTracePayload(span), traceId);
+            traceDataKafkaProducer.sendTrace(toTracePayload(span), traceId)
+                    .subscribe(null, err -> {});
         }
 
         for (SpanEvent spanEvent : span.getSpanEventListList()) {
             SpanEventPayload spanEventPayload = toSpanEventPayload(spanEvent);
 
-            traceDataKafkaProducer.sendSpanEvent(spanEventPayload, traceId);
+            traceDataKafkaProducer.sendSpanEvent(spanEventPayload, traceId)
+                    .subscribe(null, err -> {});
         }
     }
 
