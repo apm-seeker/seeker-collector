@@ -1,21 +1,20 @@
-package com.seeker.collector.kafka.dto;
+package com.seeker.collector.kafka.dto.payload;
 
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
 @Builder
-public class SpanDto {
-    private String traceId;
+public class SpanPayload implements TraceDataPayload {
     private long spanId;
     private long parentSpanId;
+    private String traceId;
     private String agentId;
-    private String applicationName;
     private long startTime;
     private int elapsedTime;
     private String uri;
-    private String remoteAddr;
+    private String remoteAddress;
     private String endPoint;
-    private int serviceType;
+    private int statusCode;
     private String exceptionInfo;
 }
