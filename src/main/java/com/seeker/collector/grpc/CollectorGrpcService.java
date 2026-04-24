@@ -1,9 +1,10 @@
 package com.seeker.collector.grpc;
 
 import com.seeker.collector.global.grpc.*;
-import com.seeker.collector.kafka.dto.SpanDto;
-import com.seeker.collector.kafka.dto.SpanEventDto;
-import com.seeker.collector.kafka.producer.SpanKafkaProducer;
+import com.seeker.collector.kafka.dto.payload.SpanEventPayload;
+import com.seeker.collector.kafka.dto.payload.SpanPayload;
+import com.seeker.collector.kafka.dto.payload.TracePayload;
+import com.seeker.collector.kafka.producer.TraceDataKafkaProducer;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceImplBase {
 
-    private final SpanKafkaProducer spanKafkaProducer;
+    private final TraceDataKafkaProducer traceDataKafkaProducer;
 
     @Override
     public StreamObserver<DataMessage> collect(StreamObserver<CollectResponse> responseObserver) {
@@ -48,44 +49,63 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
     }
 
     private void handleSpan(Span span) {
-        TraceId traceId = span.getTraceId();
 
-        SpanDto spanDto = SpanDto.builder()
-                .traceId(traceId.getTraceId())
-                .spanId(traceId.getSpanId())
-                .parentSpanId(traceId.getParentSpanId())
+        SpanPayload spanPayload = toSpanPayload(span);
+        String traceId = spanPayload.getTraceId();
+
+        traceDataKafkaProducer.sendSpan(spanPayload, traceId);
+
+        if (spanPayload.getParentSpanId() == -1) {
+            traceDataKafkaProducer.sendTrace(toTracePayload(span), traceId);
+        }
+
+        for (SpanEvent spanEvent : span.getSpanEventListList()) {
+            SpanEventPayload spanEventPayload = toSpanEventPayload(spanEvent);
+
+            traceDataKafkaProducer.sendSpanEvent(spanEventPayload, traceId);
+        }
+    }
+
+    private TracePayload toTracePayload(Span span) {
+        return TracePayload
+                .builder()
+                .traceId(span.getTraceId().getTraceId())
+                .startTime(span.getStartTime())
+                .elapsedTime(span.getElapsedTime())
+                .url(span.getUri())
+                .remoteAddress(span.getRemoteAddr())
+                .statusCode(span.getStatusCode())
+                .build();
+    }
+
+    private SpanPayload toSpanPayload(Span span) {
+        return SpanPayload
+                .builder()
+                .spanId(span.getTraceId().getSpanId())
+                .parentSpanId(span.getTraceId().getParentSpanId())
+                .traceId(span.getTraceId().getTraceId())
                 .agentId(span.getAgentId())
-                .applicationName(span.getApplicationName())
                 .startTime(span.getStartTime())
                 .elapsedTime(span.getElapsedTime())
                 .uri(span.getUri())
-                .remoteAddr(span.getRemoteAddr())
+                .remoteAddress(span.getRemoteAddr())
                 .endPoint(span.getEndPoint())
-                .serviceType(span.getServiceType())
+                .statusCode(span.getStatusCode())
                 .exceptionInfo(span.getExceptionInfo())
                 .build();
-
-        spanKafkaProducer.sendSpan(spanDto);
-
-        for (SpanEvent event : span.getSpanEventListList()) {
-            SpanEventDto eventDto = SpanEventDto.builder()
-                    .traceId(traceId.getTraceId())
-                    .spanId(traceId.getSpanId())
-                    .agentId(span.getAgentId())
-                    .applicationName(span.getApplicationName())
-                    .sequence(event.getSequence())
-                    .startTime(event.getStartTime())
-                    .elapsedTime(event.getElapsedTime())
-                    .depth(event.getDepth())
-                    .methodType(event.getMethodType())
-                    .attributes(event.getAttributesMap())
-                    .exceptionInfo(event.getExceptionInfo())
-                    .build();
-
-            spanKafkaProducer.sendSpanEvent(eventDto);
-        }
-
-        log.debug("[Collector] Span 처리 완료 - traceId: {}, spanEvents: {}",
-                traceId.getTraceId(), span.getSpanEventListCount());
     }
+
+    private SpanEventPayload toSpanEventPayload(SpanEvent spanEvent) {
+        return SpanEventPayload
+                .builder()
+                .sequence(spanEvent.getSequence())
+                .depth(spanEvent.getDepth())
+                .startTime(spanEvent.getStartTime())
+                .elapsedTime(spanEvent.getElapsedTime())
+                .className(spanEvent.getAttributesOrDefault("className", null))
+                .methodName(spanEvent.getAttributesOrDefault("methodName", null))
+                .exceptionInfo(spanEvent.getExceptionInfo())
+                .build();
+    }
+
 }
