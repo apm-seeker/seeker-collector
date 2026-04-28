@@ -13,10 +13,10 @@ jobs:
       - name: Checkout source repo
         uses: actions/checkout@v4
 
-      # 2. GitLab mono repo clone
+      # 2. GitLab mono repo clone (소스 디렉터리 밖에 clone — 무한 재귀 방지)
       - name: Clone GitLab repo
         run: |
-          git clone https://oauth2:${{ secrets.GITLAB_TOKEN }}@lab.ssafy.com/s14-final/S14P31A108.git mono-repo
+          git clone https://oauth2:${{ secrets.GITLAB_TOKEN }}@lab.ssafy.com/s14-final/S14P31A108.git /tmp/mono-repo
 
       # 3. repo 이름 변수 설정
       - name: Set repo name
@@ -24,23 +24,23 @@ jobs:
 
       # 4. (안전) 폴더 생성
       - name: Ensure directory exists
-        run: mkdir -p mono-repo/$REPO_NAME
+        run: mkdir -p /tmp/mono-repo/$REPO_NAME
 
       # 5. 파일 동기화
       - name: Sync files
         run: |
-          rsync -av --delete ./ mono-repo/$REPO_NAME/ \
+          rsync -av --delete ./ /tmp/mono-repo/$REPO_NAME/ \
           --exclude '.git' \
           --exclude '.github'
 
       # 6. commit & push
       - name: Commit & Push
         run: |
-          cd mono-repo
+          cd /tmp/mono-repo
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
-          git pull origin main --rebase || echo "no remote branch"
+          git pull origin master --rebase || echo "no remote branch"
 
           git add .
           git commit -m "sync: $REPO_NAME updated from GitHub" || echo "No changes"
