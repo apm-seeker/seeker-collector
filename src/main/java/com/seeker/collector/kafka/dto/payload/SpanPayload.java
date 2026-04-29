@@ -10,6 +10,7 @@ public class SpanPayload implements TraceDataPayload {
     private long parentSpanId;
     private String traceId;
     private String agentId;
+    private String parentAgentId;
     private long startTime;
     private int elapsedTime;
     private String uri;

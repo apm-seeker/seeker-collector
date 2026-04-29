@@ -91,6 +91,7 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
                 .parentSpanId(span.getTraceId().getParentSpanId())
                 .traceId(span.getTraceId().getTraceId())
                 .agentId(span.getAgentId())
+                .parentAgentId(span.getParentAgentId())
                 .startTime(span.getStartTime())
                 .elapsedTime(span.getElapsedTime())
                 .uri(span.getUri())

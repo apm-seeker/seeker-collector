@@ -62,16 +62,16 @@ message TraceId {
 message Span {
   TraceId trace_id = 1;
   string agent_id = 2;
-  string application_name = 3;
-  int64 start_time = 4;              // Span 시작 시간 (Epoch Millis)
-  int32 elapsed_time = 5;            // 소요 시간 (Millis)
-  string uri = 6;                    // 요청된 RPC / URL 통계용
-  string remote_addr = 7;            // 호출자(클라이언트) IP
-  string end_point = 8;              // 리소스 엔드포인트
-  int32 service_type = 9;            // TOMCAT, SPRING_BOOT 등 서비스 타입 코드
-  string exception_info = 10;        // 발생한 Exception 내역 (없으면 빈 문자열)
-  repeated SpanEvent span_event_list = 11; // 내부의 상세 이벤트들
-  int32 status_code = 12;            //서버에서 반환한 status code
+  int64 start_time = 3;              // Span 시작 시간 (Epoch Millis)
+  int32 elapsed_time = 4;            // 소요 시간 (Millis)
+  string uri = 5;                    // 요청된 RPC / URL 통계용
+  string remote_addr = 6;            // 호출자(클라이언트) IP
+  string end_point = 7;              // 리소스 엔드포인트
+  int32 service_type = 8;            // TOMCAT, SPRING_BOOT 등 서비스 타입 코드
+  string exception_info = 9;        // 발생한 Exception 내역 (없으면 빈 문자열)
+  repeated SpanEvent span_event_list = 10; // 내부의 상세 이벤트들
+  string parent_agent_id = 11;       // 본 요청을 보낸 상위 호출자 에이전트의 ID (루트일 경우 빈 문자열)
+  int32 status_code = 12;            // HTTP 응답 상태 코드 (0이면 미설정)
 }
 
 // Span 내부에서 발생한 세부 작업 단위 (DB 쿼리, 외부 HTTP 호출 등)
