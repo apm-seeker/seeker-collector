@@ -21,12 +21,8 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
     @Override
     public StreamObserver<DataMessage> collect(StreamObserver<CollectResponse> responseObserver) {
         return new StreamObserver<>() {
-            private int receivedCount = 0;
-
             @Override
             public void onNext(DataMessage dataMessage) {
-                receivedCount++;
-
                 if (dataMessage.hasSpan()) {
                     handleSpan(dataMessage.getSpan());
                 }
@@ -34,7 +30,7 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
 
             @Override
             public void onError(Throwable t) {
-                log.error("[Collector] gRPC 스트림 에러 - 수신 메시지 수: {}", receivedCount, t);
+                log.error("[Collector] gRPC 스트림 에러", t);
                 responseObserver.onError(Status.fromThrowable(t).asRuntimeException());
             }
 
@@ -42,10 +38,9 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
             public void onCompleted() {
                 responseObserver.onNext(CollectResponse.newBuilder()
                         .setSuccess(true)
-                        .setReceivedCount(receivedCount)
                         .build());
                 responseObserver.onCompleted();
-                log.info("[Collector] 스트림 완료 - 수신 메시지 수: {}", receivedCount);
+                log.info("[Collector] 스트림 완료");
             }
         };
     }
