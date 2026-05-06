@@ -25,14 +25,13 @@ message DataMessage {
     AgentInfo agent_info = 1;
     Span span = 2;
     SpanChunk span_chunk = 3;
-    Metric metric = 4;
+    MetricSnapshot metric_snapshot = 4;  // Phase 1.5: 일반화된 metric batch
   }
 }
 
 // 서버의 응답 메시지
 message CollectResponse {
   bool success = 1;
-  int32 received_count = 2; // 서버가 스트림을 통해 성공적으로 받은 메시지 수
 }
 
 // ----------------------------------------------------------------
@@ -94,12 +93,32 @@ message SpanChunk {
 }
 
 // ----------------------------------------------------------------
-// 5. Metric Domain
+// 5. Metric Domain (Phase 1.5: 일반화된 구조)
 // ----------------------------------------------------------------
-// CPU, 메모리 등 시스템 매트릭
-message Metric {
-  int64 timestamp = 1;       // 측정 시간 (Epoch Millis)
-  double cpu_usage = 2;      // CPU 사용률 (0.0 ~ 1.0)
-  double memory_usage = 3;   // 메모리 사용률 (0.0 ~ 1.0)
-  int64 jvm_heap_used = 4;   // JVM 힙 사용량 (bytes)
+
+// 메트릭 값의 의미 — 차트/저장 측이 차분/누적/윈도우 처리를 결정하는 기준.
+enum MetricValueType {
+  GAUGE = 0;       // 폴링 시점의 현재값 (heap_used, threadCount 등)
+  CUMULATIVE = 1;  // 시작 이후 누적값. 서버에서 인접 두 시점 차분 (gc.count, classes_loaded)
+  DELTA = 2;       // 에이전트가 이미 직전 cycle 대비 차분으로 변환해 보낸 값 (transaction)
+  WINDOW = 3;      // 한 cycle 동안의 윈도우값. 다음 cycle에서 reset됨 (response_time avg/max)
+}
+
+// 한 메트릭의 한 시점 값.
+message MetricPoint {
+  string metric_name = 1;            // 카테고리 (예: "jvm.gc", "jvm.memory")
+  string field_name = 2;             // 세부 항목 (예: "count", "heap_used")
+  double value = 3;                  // 측정값
+  MetricValueType type = 4;          // 값의 의미
+  map<string, string> tags = 5;      // 차원 분해 (예: {"gc_type":"g1","gc_name":"G1 Old Generation"})
+}
+
+// 한 cycle에 수집된 메트릭의 묶음. 송신 단위.
+// 4-tuple ID = (application_name, agent_id, agent_start_time, timestamp)로 시계열을 식별한다.
+message MetricSnapshot {
+  string application_name = 1;       // 에이전트가 속한 애플리케이션
+  string agent_id = 2;               // 에이전트 인스턴스
+  int64 timestamp = 3;               // 이 cycle 수집 시점 (Epoch ms)
+  int64 collect_interval_ms = 4;     // wall-clock 측정된 cycle 간격 (스케줄 인터벌이 아님)
+  repeated MetricPoint points = 5;
 }
