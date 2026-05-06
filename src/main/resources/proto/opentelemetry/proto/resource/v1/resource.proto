@@ -1,0 +1,41 @@
+// =============================================================================
+// OpenTelemetry Resource 정의 (v1.3.2 vendor)
+// 출처: https://github.com/open-telemetry/opentelemetry-proto/blob/v1.3.2/opentelemetry/proto/resource/v1/resource.proto
+//
+// 목적:
+//   "이 데이터는 어디서 왔는가" 를 표현. service.name / host.name / k8s.pod.name 같은
+//   환경 정보들이 attribute 묶음 형태로 들어감.
+//   하나의 Resource 는 "한 프로세스/한 서비스 인스턴스" 1개를 의미.
+//   같은 Export 호출 안에서도 ResourceSpans 가 여러 개면 출처가 여러 곳이라는 뜻.
+// =============================================================================
+syntax = "proto3";
+
+package opentelemetry.proto.resource.v1;
+
+// common.proto 의 KeyValue 타입을 재사용 (attribute 표현)
+import "opentelemetry/proto/common/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.seeker.collector.otlp.proto.resource.v1";
+option java_outer_classname = "ResourceProto";
+
+// -----------------------------------------------------------------------------
+// Resource — 데이터 출처 식별자
+// -----------------------------------------------------------------------------
+// 표준 attribute key 들 (semantic conventions):
+//   service.name        — 서비스 이름 (필수에 가까움)
+//   service.instance.id — 인스턴스 식별자
+//   host.name           — 호스트 이름
+//   host.ip / net.host.ip — 호스트 IP
+//   process.pid         — 프로세스 ID
+//   k8s.pod.name        — k8s 환경의 pod 이름
+//
+// 콜렉터에서는 이 attribute 들을 읽어 우리의 AgentInfo (agentId/applicationName/hostname) 로 매핑.
+// -----------------------------------------------------------------------------
+message Resource {
+  // service.name, host.name 등이 모두 여기에 KeyValue 형태로 들어감
+  repeated opentelemetry.proto.common.v1.KeyValue attributes = 1;
+
+  // attribute 개수 제한 초과로 drop 된 개수 (대개 0)
+  uint32 dropped_attributes_count = 2;
+}

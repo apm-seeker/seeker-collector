@@ -1,0 +1,72 @@
+// =============================================================================
+// OpenTelemetry Trace Collector gRPC 서비스 정의 (v1.3.2 vendor)
+// 출처: https://github.com/open-telemetry/opentelemetry-proto/blob/v1.3.2/opentelemetry/proto/collector/trace/v1/trace_service.proto
+//
+// 목적:
+//   OTLP/gRPC 의 traces 신호 진입점.
+//   클라이언트(Envoy / OTel SDK / OTel Collector)는 이 service 의 Export RPC 로 trace 데이터를 보냄.
+//
+// gRPC wire 상에서의 풀네임:
+//   /opentelemetry.proto.collector.trace.v1.TraceService/Export
+//   ↑ 이 경로로 들어온 요청이 우리 OtlpTraceService.export() 로 라우팅됨.
+//
+// RPC 종류: unary (단발성 요청-응답)
+//   - 자체 프로토콜의 collect() 는 client-streaming 이지만,
+//   - OTLP 의 Export 는 한 번의 요청에 ResourceSpans 를 batch 로 묶어 보냄.
+//   - HTTP/2 의 흐름 제어 + protobuf 압축으로 효율 충분하다는 OTel 진영의 판단.
+// =============================================================================
+syntax = "proto3";
+
+package opentelemetry.proto.collector.trace.v1;
+
+import "opentelemetry/proto/trace/v1/trace.proto";
+
+option java_multiple_files = true;
+option java_package = "com.seeker.collector.otlp.proto.collector.trace.v1";
+option java_outer_classname = "TraceServiceProto";
+
+// -----------------------------------------------------------------------------
+// TraceService — OTLP traces 의 단일 RPC
+// -----------------------------------------------------------------------------
+// protoc-gen-grpc-java 가 이 정의로부터 다음 산출물을 생성:
+//   - TraceServiceGrpc.TraceServiceImplBase   ← 우리가 상속받는 추상 서버 클래스
+//   - TraceServiceGrpc.TraceServiceStub       ← 클라이언트용 비동기 stub
+//   - TraceServiceGrpc.TraceServiceBlockingStub ← 클라이언트용 동기 stub
+// -----------------------------------------------------------------------------
+service TraceService {
+  // 클라이언트 → 서버: trace 배치를 보냄
+  // 서버 → 클라이언트: 부분 실패 정보(있으면) 응답
+  rpc Export(ExportTraceServiceRequest) returns (ExportTraceServiceResponse) {}
+}
+
+// -----------------------------------------------------------------------------
+// ExportTraceServiceRequest — 한 번의 Export 요청 페이로드
+// -----------------------------------------------------------------------------
+// resource_spans 가 여러 개 들어올 수 있는 이유:
+//   collector 체인 (agent → collector → backend) 에서 여러 출처의 데이터를 한 묶음으로 forward 할 수 있음.
+//   Envoy 의 단일 인스턴스에서 직접 보낼 때는 보통 1개만 들어옴.
+// -----------------------------------------------------------------------------
+message ExportTraceServiceRequest {
+  repeated opentelemetry.proto.trace.v1.ResourceSpans resource_spans = 1;
+}
+
+// -----------------------------------------------------------------------------
+// ExportTraceServiceResponse — 응답
+// -----------------------------------------------------------------------------
+// partial_success 가 비어 있으면 = "전부 정상 수신" 의 OTLP 표준 약속.
+// 우리는 항상 비워서 응답함 (Kafka 발행은 비동기라 응답 시점에 결과를 모름).
+// -----------------------------------------------------------------------------
+message ExportTraceServiceResponse {
+  ExportTracePartialSuccess partial_success = 1;
+}
+
+// -----------------------------------------------------------------------------
+// ExportTracePartialSuccess — 부분 거부 정보
+// -----------------------------------------------------------------------------
+// 서버가 일부 span 만 거부한 경우 클라가 재시도하지 않도록 알려주는 용도.
+// rejected_spans=0 이고 error_message="" 이면 "거부된 것 없음" = 전체 성공.
+// -----------------------------------------------------------------------------
+message ExportTracePartialSuccess {
+  int64 rejected_spans = 1;
+  string error_message = 2;
+}
