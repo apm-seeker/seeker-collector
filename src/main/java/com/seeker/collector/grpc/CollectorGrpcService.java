@@ -4,6 +4,10 @@ import com.seeker.collector.global.grpc.*;
 import com.seeker.collector.kafka.dto.payload.SpanEventPayload;
 import com.seeker.collector.kafka.dto.payload.SpanPayload;
 import com.seeker.collector.kafka.dto.payload.TracePayload;
+import com.seeker.collector.kafka.dto.payload.metric.MetricPointDto;
+import com.seeker.collector.kafka.dto.payload.metric.MetricSnapshotPayload;
+import com.seeker.collector.kafka.dto.payload.metric.MetricValueType;
+import com.seeker.collector.kafka.producer.MetricKafkaProducer;
 import com.seeker.collector.kafka.producer.TraceDataKafkaProducer;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -11,20 +15,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceImplBase {
 
     private final TraceDataKafkaProducer traceDataKafkaProducer;
+    private final MetricKafkaProducer metricKafkaProducer;
 
     @Override
     public StreamObserver<DataMessage> collect(StreamObserver<CollectResponse> responseObserver) {
         return new StreamObserver<>() {
             @Override
             public void onNext(DataMessage dataMessage) {
-                if (dataMessage.hasSpan()) {
-                    handleSpan(dataMessage.getSpan());
+                switch (dataMessage.getDataCase()) {
+                    case SPAN -> handleSpan(dataMessage.getSpan());
+                    case METRIC_SNAPSHOT -> handleMetricSnapshot(dataMessage.getMetricSnapshot());
                 }
             }
 
@@ -65,6 +73,18 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
             traceDataKafkaProducer.sendSpanEvent(spanEventPayload, traceId)
                     .subscribe(null, err -> {});
         }
+    }
+
+    private void handleMetricSnapshot(MetricSnapshot metricSnapshot) {
+
+        List<MetricPointDto> points = metricSnapshot.getPointsList()
+                .stream()
+                .map(this::toMetricPointDto)
+                .toList();
+
+        MetricSnapshotPayload metricSnapshotPayload = toMetricSnapshotPayload(metricSnapshot, points);
+        metricKafkaProducer.sendMetricSnapshot(metricSnapshotPayload, metricSnapshotPayload.getAgentId())
+                .subscribe(null, err ->{});
     }
 
     private TracePayload toTracePayload(Span span) {
@@ -111,4 +131,24 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
                 .build();
     }
 
+    private MetricSnapshotPayload toMetricSnapshotPayload(MetricSnapshot metricSnapshot, List<MetricPointDto> points) {
+        return MetricSnapshotPayload
+                .builder()
+                .applicationName(metricSnapshot.getApplicationName())
+                .agentId(metricSnapshot.getAgentId())
+                .timestamp(metricSnapshot.getTimestamp())
+                .collectIntervalMs(metricSnapshot.getCollectIntervalMs())
+                .points(points)
+                .build();
+    }
+
+    private MetricPointDto toMetricPointDto(MetricPoint metricPoint) {
+        return MetricPointDto
+                .builder()
+                .metricName(metricPoint.getMetricName())
+                .fieldName(metricPoint.getFieldName())
+                .value(metricPoint.getValue())
+                .type(MetricValueType.valueOf(metricPoint.getType().name()))
+                .build();
+    }
 }
