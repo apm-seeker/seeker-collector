@@ -149,6 +149,7 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
                 .fieldName(metricPoint.getFieldName())
                 .value(metricPoint.getValue())
                 .type(MetricValueType.valueOf(metricPoint.getType().name()))
+                .tags(metricPoint.getTagsMap())
                 .build();
     }
 }
