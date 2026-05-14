@@ -9,6 +9,9 @@ public enum EventType {
     // trace data 관련 enum
     TRACE,
     SPAN,
-    SPAN_EVENT
+    SPAN_EVENT,
+
+    // metric
+    METRIC_SNAPSHOT
 
 }
