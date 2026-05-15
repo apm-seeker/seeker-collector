@@ -15,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -118,6 +120,10 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
     }
 
     private SpanEventPayload toSpanEventPayload(SpanEvent spanEvent, long spanId) {
+        Map<String, String> attrs = new HashMap<>(spanEvent.getAttributesMap());
+        String className = attrs.remove("className");
+        String methodName = attrs.remove("methodName");
+
         return SpanEventPayload
                 .builder()
                 .spanId(spanId)
@@ -125,9 +131,10 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
                 .depth(spanEvent.getDepth())
                 .startTime(spanEvent.getStartTime())
                 .elapsedTime(spanEvent.getElapsedTime())
-                .className(spanEvent.getAttributesOrDefault("className", null))
-                .methodName(spanEvent.getAttributesOrDefault("methodName", null))
+                .className(className)
+                .methodName(methodName)
                 .exceptionInfo(spanEvent.getExceptionInfo())
+                .attributes(attrs)
                 .build();
     }
 
