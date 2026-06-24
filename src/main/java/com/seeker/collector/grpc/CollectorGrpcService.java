@@ -1,12 +1,14 @@
 package com.seeker.collector.grpc;
 
 import com.seeker.collector.global.grpc.*;
+import com.seeker.collector.kafka.dto.payload.LogPayload;
 import com.seeker.collector.kafka.dto.payload.SpanEventPayload;
 import com.seeker.collector.kafka.dto.payload.SpanPayload;
 import com.seeker.collector.kafka.dto.payload.TracePayload;
 import com.seeker.collector.kafka.dto.payload.metric.MetricPointDto;
 import com.seeker.collector.kafka.dto.payload.metric.MetricSnapshotPayload;
 import com.seeker.collector.kafka.dto.payload.metric.MetricValueType;
+import com.seeker.collector.kafka.producer.LogKafkaProducer;
 import com.seeker.collector.kafka.producer.MetricKafkaProducer;
 import com.seeker.collector.kafka.producer.TraceDataKafkaProducer;
 import io.grpc.Status;
@@ -26,6 +28,7 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
 
     private final TraceDataKafkaProducer traceDataKafkaProducer;
     private final MetricKafkaProducer metricKafkaProducer;
+    private final LogKafkaProducer logKafkaProducer;
 
     @Override
     public StreamObserver<DataMessage> collect(StreamObserver<CollectResponse> responseObserver) {
@@ -35,6 +38,7 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
                 switch (dataMessage.getDataCase()) {
                     case SPAN -> handleSpan(dataMessage.getSpan());
                     case METRIC_SNAPSHOT -> handleMetricSnapshot(dataMessage.getMetricSnapshot());
+                    case LOG_BATCH -> handleLogBatch(dataMessage.getLogBatch());
                 }
             }
 
@@ -87,6 +91,15 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
         MetricSnapshotPayload metricSnapshotPayload = toMetricSnapshotPayload(metricSnapshot, points);
         metricKafkaProducer.sendMetricSnapshot(metricSnapshotPayload, metricSnapshotPayload.getAgentId())
                 .subscribe(null, err ->{});
+    }
+
+    private void handleLogBatch(LogBatch logBatch) {
+        for (LogMessage logMessage : logBatch.getLogsList()) {
+            log.info("[Collector] LogMessage: {}", logMessage);
+            LogPayload logPayload = toLogPayload(logMessage);
+            logKafkaProducer.sendLog(logPayload)
+                    .subscribe(null, err -> {});
+        }
     }
 
     private TracePayload toTracePayload(Span span) {
@@ -157,6 +170,32 @@ public class CollectorGrpcService extends CollectorServiceGrpc.CollectorServiceI
                 .value(metricPoint.getValue())
                 .type(MetricValueType.valueOf(metricPoint.getType().name()))
                 .tags(metricPoint.getTagsMap())
+                .build();
+    }
+
+    private LogPayload toLogPayload(LogMessage logMessage) {
+        TraceId traceId = logMessage.getTraceId();
+
+        return LogPayload
+                .builder()
+                .timestamp(logMessage.getTimestamp())
+                .observedTimestamp(logMessage.getObservedTimestamp())
+                .traceId(traceId.getTraceId())
+                .spanId(traceId.getSpanId())
+                .parentSpanId(traceId.getParentSpanId())
+                .traceFlags(logMessage.getTraceFlags())
+                .agentId(logMessage.getAgentId())
+                .serviceName(logMessage.getServiceName())
+                .agentGroup(logMessage.getAgentGroup())
+                .loggerName(logMessage.getLoggerName())
+                .threadName(logMessage.getThreadName())
+                .severityText(logMessage.getSeverityText())
+                .severityNumber(logMessage.getSeverityNumber())
+                .body(logMessage.getBody())
+                .attributes(logMessage.getAttributesMap())
+                .exceptionType(logMessage.getExceptionType())
+                .exceptionMessage(logMessage.getExceptionMessage())
+                .exceptionStacktrace(logMessage.getExceptionStacktrace())
                 .build();
     }
 }
