@@ -26,6 +26,7 @@ message DataMessage {
     Span span = 2;
     SpanChunk span_chunk = 3;
     MetricSnapshot metric_snapshot = 4;  // Phase 1.5: 일반화된 metric batch
+    LogBatch log_batch = 5;              // Log trace correlation batch
   }
 }
 
@@ -71,6 +72,7 @@ message Span {
   repeated SpanEvent span_event_list = 10; // 내부의 상세 이벤트들
   string parent_agent_id = 11;       // 본 요청을 보낸 상위 호출자 에이전트의 ID (루트일 경우 빈 문자열)
   int32 status_code = 12;            // HTTP 응답 상태 코드 (0이면 미설정)
+  string http_method = 13;
 }
 
 // Span 내부에서 발생한 세부 작업 단위 (DB 쿼리, 외부 HTTP 호출 등)
@@ -121,4 +123,38 @@ message MetricSnapshot {
   int64 timestamp = 3;               // 이 cycle 수집 시점 (Epoch ms)
   int64 collect_interval_ms = 4;     // wall-clock 측정된 cycle 간격 (스케줄 인터벌이 아님)
   repeated MetricPoint points = 5;
+}
+
+// ----------------------------------------------------------------
+// 6. Log Domain
+// ----------------------------------------------------------------
+
+// LogRecord batch. 로그는 span보다 발생량이 많으므로 batch 단위로 전송한다.
+message LogBatch {
+  repeated LogMessage logs = 1;
+}
+
+// 애플리케이션 logging framework에서 관찰한 단일 로그 이벤트.
+message LogMessage {
+  int64 timestamp = 1;              // logging framework가 이벤트를 생성한 시각
+  int64 observed_timestamp = 2;     // agent가 이벤트를 관찰한 시각
+
+  TraceId trace_id = 3;             // trace/span correlation 정보
+  int32 trace_flags = 4;            // W3C trace flags
+
+  string agent_id = 5;              // agent instance id
+  string service_name = 6;          // service/application name
+  string agent_group = 7;           // service group
+
+  string logger_name = 8;           // logger name
+  string thread_name = 9;           // logging thread name
+  string severity_text = 10;        // INFO/WARN/ERROR 등 원본 level text
+  int32 severity_number = 11;       // OpenTelemetry severity number 기준
+  string body = 12;                 // formatted log message
+
+  map<string, string> attributes = 13; // MDC allowlist, framework metadata 등
+
+  string exception_type = 14;
+  string exception_message = 15;
+  string exception_stacktrace = 16;
 }

@@ -12,6 +12,9 @@ public enum EventType {
     SPAN_EVENT,
 
     // metric
-    METRIC_SNAPSHOT
+    METRIC_SNAPSHOT,
+
+    // log
+    LOG
 
 }
